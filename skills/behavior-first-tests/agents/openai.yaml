@@ -1,0 +1,4 @@
+interface:
+  display_name: "Behavior First Tests"
+  short_description: "Useful user scenarios with real failure detection"
+  default_prompt: "Use $behavior-first-tests to write or review useful tests that exercise real behavior and fail when it breaks."
