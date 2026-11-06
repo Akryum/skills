@@ -88,6 +88,7 @@ Make inputs distinguish correct and broken implementations:
 - Retention/expiry needs both expired and retained records; an old-only example cannot reject an overly short default lifetime.
 - Claims about processing all eligible items, including retry, refresh, reconciliation, or recovery, need at least two distinct eligible inputs. Assert every result/effect; include an unaffected or excluded item when selection matters. A single example cannot reject a first-item-only loop.
 - Commands/jobs need meaningful output content and effects; a zero exit status or successful process launch alone can hide a no-op.
+- Serializers, parsers, path/key builders and structured-value editors need the edge input classes listed in the bug-hunt sweep of [auditing](references/auditing.md): empty vs null vs absent, reserved characters in keys, multi-key values, very large or non-ASCII payloads.
 - Collaboration needs two consumers and visible convergence, including rejection, undo/redo, or stale events when relevant.
 - Cleanup needs an observable consequence of actual release: no stale delivery or successful reuse that requires release. Reopening alone can succeed alongside leaked resources; choose an operation the leak would block. For shared-resource ownership, acquire it through two real consumers, release one and prove the surviving lease still holds it, then release the final consumer and prove release. Peer usability alone can hide premature close followed by transparent reacquisition.
 
@@ -131,8 +132,9 @@ For an audit request, report concrete gaps with file/line, escaping defect, stro
 
 - Audit in a context separate from the one that wrote the tests. Report only findings that affect fault detection; skip style nits. A "cannot fail" or "redundant" claim is demonstrated only by a surviving mutant or a replaced function body that stays green.
 - Look first for tests that assert current buggy behavior as intended, and for shared helpers, fakes or fixtures that ignore inputs (filters, sort, pagination, HTTP method, body) or swallow unexpected calls. One such helper hides defects in every consumer.
+- Run the required bug-hunt sweep in [auditing](references/auditing.md): input classes per function kind, concurrency and lifecycle scenarios, and probing untested guards (lockout, last admin, permission) instead of filing them as test-only. A code comment documenting a silent failure does not refute the bug.
 - Group a repeated weakness once with all occurrences. Deduplicate production bugs by root cause and give each one owner location; cross-reference related causes.
-- Verify every production-bug claim with a bug probe before reporting it as fact; record status (confirmed, partial, latent, duplicate, refuted, unverified) and severity (critical, high, medium, low). Refute or downgrade claims the probe disproves; keep the correction visible.
+- Verify every production-bug claim with a bug probe before reporting it as fact; record status (confirmed, partial, latent, duplicate, refuted, unverified) and severity (critical, high, medium, low). Refute or downgrade claims the probe disproves; keep the correction visible. A critical or high rating that rests on server behavior read from source stays partial until a live request confirms it.
 - Verify server-side consequences against a live service only on a development instance the user named, with scratch resources, sentinel data and a cleanup log; lockout and irreversible tests need explicit approval. See [references/live-verification.md](references/live-verification.md).
 
 ## Finish within scope

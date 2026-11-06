@@ -44,6 +44,11 @@ export default async (env) => {
     include: ['**/*.probe.{test,spec}.ts'],
     coverage: { ...config.test?.coverage, enabled: false },
     typecheck: { enabled: false },
+    // Vitest 5 persists transformed modules in node_modules/.vitest-cache by default. That writes into the
+    // checkout and can serve a stale module for a mutated copy, so a mutant can appear to survive.
+    fsModuleCache: false,
+    // Without the cache, a framework environment (e.g. Nuxt) boots cold; allow for it.
+    hookTimeout: 300_000,
   }
   // Sensitivity probe: redirect one resolved module to its mutated scratch copy.
   const { MUTANT_FROM: from, MUTANT_TO: to } = process.env
@@ -62,6 +67,8 @@ export default async (env) => {
 ```
 
 Run from the package folder: `PROBE_ROOT=$PWD PROBE_DIR=<scratch>/probes/<group> npx vitest run --config <scratch>/harness/vitest.probe.mjs`. Add `MUTANT_FROM=<absolute source path> MUTANT_TO=<scratch mutant>` for a sensitivity run; the same file must pass without them. Adjust for a config that lives elsewhere or defines several projects.
+
+Persistent transform caches are the main isolation trap: any runner or bundler cache keyed in a way that survives a source swap (Vitest's `fsModuleCache`, Jest's `cacheDirectory`, Babel or esbuild caches) can replay the original or a previous mutant. Disable or relocate every such cache for sensitivity runs, and treat any "mutant survived" result obtained with a shared cache as unverified until re-run. Expect slower runs once caches are off (a cold framework environment can take minutes), so raise hook timeouts rather than re-enabling the cache.
 
 Other runners, same idea (confirm on first run):
 

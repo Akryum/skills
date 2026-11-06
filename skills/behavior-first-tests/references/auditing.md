@@ -7,12 +7,12 @@ Use when reviewing many test files at once or coordinating several reviewers ove
 1. **Inventory and slice.** List test files with the production code they target and the shared helpers, fakes and fixtures they import. Slice by owner module or layer, keeping each test with its production code. Size slices so a reviewer reads every test line and the targeted production code; broad slices get skimmed, large files first. A broad first pass followed by smaller, deeper slices works when budget is uncertain.
 2. **Give shared code one owner.** Each shared helper, fake, fixture factory, serializer or setup file belongs to exactly one slice. Other slices cite it with their consumer count instead of re-auditing it.
 3. **Share one brief.** Every reviewer gets the same reading list (this skill, project testing standards, harness docs), read-only constraints, scratch probe folder, test-run budget, finding format, output path and a word limit for the returned summary. A later wave verifies the earlier findings for its slice instead of repeating them. Audit tests from a context separate from the one that wrote them: give the reviewer code and contracts, not the author's reasoning. Delegate only when requested or otherwise authorized.
-4. **Review each slice.** Read every test line by line along with the code it targets. Check the high-leverage targets below first. Hunt production bugs in branches tests never reach: operation-key typos, missing awaits, wrong-target lookups, off-by-one, null/empty handling, coercions, dropped filters, stale async publication. List coverage gaps: user-relied logic with no test that can fail for its main defect.
-5. **Consolidate.** Deduplicate by root cause, not symptom or file: one id, the owning location, other occurrences listed under it. Cross-reference distinct root causes usually fixed together. Group a repeated weakness once with every `file:line` occurrence.
-6. **Verify before reporting a bug as fact.** Every production-bug claim gets a bug probe ([fault probes](fault-probes.md)) from a verifier who re-reads the code at the current revision and treats earlier conclusions as leads. Trace reachability from a user entry. Assign a status and re-rate severity from what was observed. For consequences inside a running service, see [live verification](live-verification.md).
+4. **Review each slice.** Read every test line by line along with the code it targets. Check the high-leverage targets below first. Hunt production bugs in branches tests never reach: operation-key typos, missing awaits, wrong-target lookups, off-by-one, null/empty handling, coercions, dropped filters, stale async publication. Run the [bug-hunt sweep](#bug-hunt-sweep) on every function it applies to; it is required, not a suggestion. List coverage gaps: user-relied logic with no test that can fail for its main defect. Take every cited line number from a fresh numbered read of the current file.
+5. **Consolidate.** Deduplicate by root cause, not symptom or file: one id, the owning location, other occurrences listed under it. Cross-reference distinct root causes usually fixed together. Group a repeated weakness once with every `file:line` occurrence. Assign every cross-slice lead (a bug whose caller or consequence lives in another slice) to exactly one verifier, and have the other slice reference that entry instead of rating it again.
+6. **Verify before reporting a bug as fact.** Every production-bug claim gets a bug probe ([fault probes](fault-probes.md)) from a verifier who re-reads the code at the current revision and treats earlier conclusions as leads. Trace reachability from a user entry. Assign a status and re-rate severity from what was observed. A critical or high rating that depends on server, database or other-service behavior read from source stays provisional: confirm it with a live request ([live verification](live-verification.md)) or record it as partial with the server step marked inferred. Reading server code has both missed rejections that made a bug harmless and missed consequences that made one worse.
 7. **Report.** Produce a bug register and a test-rework list (below). Keep inferred findings visibly separate from demonstrated ones.
 
-Verification changes results. In one audit of roughly 950 test files, about a third of the reported production bugs ended latent, duplicate or refuted after probing, and live checks re-rated several survivors. Unverified audit claims should not drive fixes.
+Verification changes results. In one audit of roughly 950 test files, about a third of the reported production bugs ended latent, duplicate or refuted after probing, and live checks re-rated several survivors. Unverified audit claims should not drive fixes. An independent rerun of the same suite with this workflow was far more precise (verification moved only 7% of review claims) but found about half as many bugs. Every critical and high miss sat in a file the reviewer had read; the misses clustered on input classes and concurrency scenarios nobody tried, and on guards filed as "untested" instead of probed. The sweep below targets exactly those.
 
 ## High-leverage targets
 
@@ -23,6 +23,31 @@ One finding here often explains many escaped bugs.
 - **Fixtures that cannot distinguish.** Fields production never sets, already-sorted rows, identifiers equal to names, single records, empty initial state, one-sided bounds.
 - **Tests that exercise no production code.** A copy of the algorithm inside the test, assertions on source text, mocks of owned stores or services that replace the behavior under test.
 - **Tests that can never fail.** Pre-satisfied assertions, a mocked translator or formatter returning the key under test, throttling configured as passthrough, negative type tests that compile either way, cleanup checks that skip the relevant keys.
+
+## Bug-hunt sweep
+
+Reading code finds the defects a reviewer thinks of; the sweep finds the ones they don't. For each function that matches a row, try every listed input against the contract, at least by reading and by a probe when the outcome is unclear. Record in the slice report which functions were swept.
+
+| Function kind | Inputs to try |
+|---|---|
+| Serializers, query/filter builders, encoders | `null`, `undefined`, absent key, `''`, `0`, `false`, `NaN`, `[]`, `{}`, `[x, undefined]`, nested empty `_and`/`_or`, Date/Temporal/Map/Set, very large numbers |
+| Parsers, route/query readers | special and reserved keys (`__proto__`, `constructor`), duplicate keys, numeric-looking strings, unexpected types, malformed values |
+| Path, URL and key builders | `/`, `?`, `#`, `%`, `.`, `..`, spaces, unicode, empty string, composite or array keys |
+| Editors of structured values (filter rows, rules, forms) | objects with several keys or operators, existing values the editor does not create itself, clearing one entry of a list, removing the last entry, switching type or operator with a value present |
+| Text and file inputs | non-ASCII and emoji, very large payloads, pasted or programmatic input that fires no key events |
+| Numeric inputs | bounds, negative, decimals on integer fields, precision and scale limits, exponent forms |
+
+**Concurrency and lifecycle scenarios** for every stateful composable, store or component that saves, fetches or navigates:
+
+- an edit or second request while a save or fetch is in flight;
+- a reply that lands after its inputs changed (prop, selection, route, workspace) or after unmount;
+- a failure partway through a multi-step write, then a retry;
+- an error raised after navigation or a redirect;
+- a second subscriber or instance while the first unmounts.
+
+**Guards are bugs until probed.** When a test finding concerns an untested lockout, last-method, last-admin, permission or validation guard, probe the guard itself against the other actor's or the server's state before filing it as test-only. "The guard is untested" and "the guard is wrong" need different evidence, and the worst defects hide in that gap.
+
+**Comments are not contracts.** A comment that documents a silent failure, a "best-effort" step or a behavior inconsistent with the rest of the feature does not refute a bug. Rate the user consequence. Record the comment as context, and mark the entry "needs product decision" only when the behavior is plausibly intended and harmless to the user.
 
 ## Finding format
 
