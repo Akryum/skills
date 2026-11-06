@@ -1,6 +1,6 @@
 ---
 name: behavior-first-tests
-description: Write, improve, or audit tests in any software project for useful user scenarios, real behavior under test, appropriate database/external-service mocks, and demonstrated failure detection. Apply when adding regression coverage or reviewing test quality across applications, APIs, libraries, command-line tools, and background jobs.
+description: Write, improve, or audit tests in any software project for useful user scenarios, real behavior under test, appropriate database/external-service mocks, and demonstrated failure detection. Apply when adding regression coverage, reviewing test quality, auditing a large test suite, or verifying suspected bugs with fault probes across applications, APIs, libraries, command-line tools, and background jobs.
 ---
 
 # Behavior First Tests
@@ -23,7 +23,7 @@ Choose the smallest boundary that executes the real behavior needed to protect t
 - Pure logic: call the real exported algorithm and assert complete outputs and important invariants.
 - API or application workflow: execute the real public entry, business rules, and relevant local collaborators. Persistence or external-service dependencies may be mocked.
 - Connector: execute the production client/adapter under test; its DB, SDK, HTTP, or external-service dependency may be mocked. Verify request targets, payloads, filters, results, and errors relevant to the claim. A mocked SDK does not prove SDK wire encoding; recorded SQL does not prove DB execution.
-- UI/lifecycle: exercise the real framework lifecycle or runtime when focus, shutdown, disposal, or platform behavior matters. Manually calling a cleanup helper does not prove the runtime invokes it.
+- UI/lifecycle: exercise the real framework lifecycle or runtime when focus, shutdown, disposal, or platform behavior matters. Manually calling a cleanup helper does not prove the runtime invokes it. For component behavior, mount real children and stores, act through user events, query by role or accessible name, and assert rendered output and emitted events. Reading or calling component internals (instance state, stub props, manually emitted child events) does not prove the user-facing contract.
 - CLI or background job: invoke the actual command/job entry and inspect meaningful outputs, exit status, persisted effects, and retry behavior as appropriate. A called helper alone does not prove command wiring.
 - Generated artifacts: consume the actual generated code, configuration, file, or package through its intended consumer. Text matching alone does not prove it loads or works.
 - Types: use compile-time assertions and appropriate rejected usage cases. A function's existence is no runtime proof; keep compile-only claims separate.
@@ -43,7 +43,7 @@ Before writing or replacing tests, record brief working notes covering:
 - **Oracle:** decisive public assertion with independent expected values; identify which assertion should fail under the defect.
 - **Lifetime:** when completion becomes observable and how acquired resources or held external work are released after failure, if applicable.
 
-Use one compact note per important claim or related scenario group, not paperwork for every assertion. Resolve unsupported inputs, hidden normalization, and an oracle already satisfied by initial state before coding. The distinguishing inputs below are part of this preflight; use only those relevant to the contract.
+Use one compact note per important claim or related scenario group, not paperwork for every assertion. For an audit of existing tests, the finding format in [auditing](references/auditing.md) replaces these notes. Resolve unsupported inputs, hidden normalization, and an oracle already satisfied by initial state before coding. The distinguishing inputs below are part of this preflight; use only those relevant to the contract.
 
 ## Test doubles: allowed boundaries, useful assertions
 
@@ -55,7 +55,7 @@ Allowed mocks must not conceal the defect the test claims to catch. A canned res
 
 Prefer existing helpers over another fake. Real DB/service integration can add confidence when actual SQL execution or protocol interoperability is the contract, but is not mandatory for every scenario. Clearly distinguish validated application behavior with mocked dependencies from real DB execution or live-service compatibility.
 
-For reusable stateful fakes, validate the dependency semantics scenarios rely on, such as filtering, writes, errors, and ordering. Where drift could invalidate several tests, use shared contract cases against the fake and real dependency when practical. Make unsupported operations fail clearly instead of silently returning success; do not build a duplicate service.
+For reusable stateful fakes, validate the dependency semantics scenarios rely on, such as filtering, writes, errors, and ordering. Where drift could invalidate several tests, use shared contract cases against the fake and real dependency when practical. Make unsupported operations fail clearly instead of silently returning success; do not build a duplicate service. Shared fakes, stubs, scripted transports and snapshot serializers are test infrastructure with tests of their own: cover the semantics consumers rely on, and make unexpected calls fail visibly and stay recorded even when production code swallows the error. Where an API schema exists, validate fake responses against it.
 
 When provider interoperability matters, use an existing consumer/provider verification workflow, or supported schemas/sandbox checks for third-party services, where available. This checks interface compatibility; provider functional tests must establish persistence and business behavior. Do not mandate a new contract framework or live infrastructure for every mocked dependency.
 
@@ -69,9 +69,11 @@ If external infrastructure is unavailable, use the allowed DB/service mocks to c
 
 ## Implement the preflight scenario
 
-For an actual bug, write the failing regression first, confirm it fails for the intended reason, then fix the production code. For new behavior, use the same test-first approach when practical. Reuse shared setup/fixtures; keep scenario-specific assertions readable.
+For an actual bug, write the failing regression first, confirm it fails for the intended reason, then fix the production code. For new behavior, use the same test-first approach when practical. Reuse shared setup/fixtures, but keep every value a test asserts on visible in its body: builders with overridable defaults, descriptive over DRY. One behavior per test, named for the behavior and its outcome; a name that needs "and" is two tests. Keep loops and conditionals out of test bodies; vary cases through a table of inputs and expected values.
 
-Derive expected results from the product/API contract, domain rules, or independently known examples. Do not copy current implementation output or reuse the production algorithm as the oracle. Review snapshots against that contract before accepting updates; matching current output does not establish correctness.
+Derive expected results from the product/API contract, domain rules, or independently known examples, and write them before running the code. Do not copy current implementation output or reuse the production algorithm as the oracle. Review snapshots against that contract before accepting updates; matching current output does not establish correctness. Prefer small or inline snapshots, and state why updated output is correct.
+
+While implementing, treat existing tests as read-only. If one looks wrong against the contract, report it with evidence; do not edit, delete, skip or special-case its inputs to get green. Change it only within an in-scope contract change or bug fix, and say why the old assertion was wrong.
 
 For data-content assertions, expected objects must not alias mutable caller inputs or mocked returns. Use independent literals or snapshots made before the action; capture mutable request payloads when received so later mutation cannot rewrite evidence. Caller input, transport data, and published metadata can be different objects: assert preservation where the named consumer receives it. A safe cloned caller does not prove shared payload remains intact for later callbacks or history.
 
@@ -105,25 +107,36 @@ Choose supporting detail as needed:
 - For concrete generic test examples and the faults each should catch, read [references/examples.md](references/examples.md). Adapt the illustrative APIs to the project; do not copy a new harness merely to match an example.
 - For research evidence, tradeoffs, and limits of these recommendations, read [references/research.md](references/research.md).
 - For browser/process harnesses or independent evaluation of this skill, read [references/execution-and-evaluation.md](references/execution-and-evaluation.md). Keep execution constraints portable and trials uncontaminated.
+- For any fault probe, read [references/fault-probes.md](references/fault-probes.md).
+- For audits of existing suites, read [references/auditing.md](references/auditing.md); for consequences inside a running service, [references/live-verification.md](references/live-verification.md).
+- For suite infrastructure (mutation testing in CI, arid skip lists, flaky quarantine, fake ownership, snapshot policy), read [references/suite-practices.md](references/suite-practices.md).
 
 ## Prove failure sensitivity
 
 For each important claim, identify a realistic defect that should fail the test. For high-risk boundaries, weak assertions, or tests proposed as regression proof, run a targeted fault probe when practical. Do not require an exhaustive mutation campaign for routine changes.
 
-1. Run the focused baseline and confirm the intended source implementation is loaded.
-2. Probe a plausible production defect in isolated source/aliases with private writable caches, generated modules, temporary paths and reports. Dependency links alone do not isolate writes. Never inject defects into a shared checkout or dependency tree.
+1. Run the focused baseline and confirm the intended source implementation is loaded. Rerun new tests several times; one that flips on unchanged source is not accepted until its waits or state are fixed. A test flaking near 1% of runs no longer works as a signal; investigate an existing flaky test before quarantining it, since a new flake can expose a production race.
+2. Probe a plausible production defect in isolated source/aliases with private writable caches, generated modules, temporary paths and reports. Dependency links alone do not isolate writes. Never inject defects into a shared checkout or dependency tree. Keep probes in a scratch folder run through the project's own runner configuration.
 3. Require an assertion failure tied to the claimed behavior. Syntax/import failures, unrelated timeouts, and setup failures are not proof.
-4. For a survivor, verify reachability and demonstrate a promised observable defect with legitimate input; do not score equivalent changes. Strengthen genuinely weak scenarios, then confirm correct-source pass and defect failure. Protective normalization and distinct adapter contracts are covered in [fault probes](references/fault-probes.md).
+4. For a survivor, verify reachability and demonstrate a promised observable defect with legitimate input; do not score equivalent changes. Strengthen genuinely weak scenarios, then confirm correct-source pass and defect failure. Never kill a survivor with a change-detector test (logging, timeouts/backoff, flags, capacity constants); record why it is not worth a test. Protective normalization and distinct adapter contracts are covered in [fault probes](references/fault-probes.md).
 5. Restore/remove only probe-owned artifacts; preserve concurrent work. Keep scored source/test snapshots current after meaningful changes.
 
-For probe isolation and evaluating helper/oracle defects, read [references/fault-probes.md](references/fault-probes.md) when needed.
+Read [references/fault-probes.md](references/fault-probes.md) before writing any probe. It holds the probe contract (assert the correct contract, passing control in the same file, only assertion failures count), the out-of-checkout harness recipe, the defect-per-claim table, and helper/oracle isolation.
 
 If a probe cannot run, state the proposed defect and that sensitivity remains unverified. Do not claim a static review or green baseline proves it.
 
+## Audit an existing suite
+
+For an audit request, report concrete gaps with file/line, escaping defect, stronger user scenario, and whether the finding was demonstrated or inferred. Audit does not authorize rewriting tests. Delegate only when requested or otherwise authorized. Follow [references/auditing.md](references/auditing.md) for slicing, finding format, evidence per claim type, status and severity scales, pruning, and report shape.
+
+- Audit in a context separate from the one that wrote the tests. Report only findings that affect fault detection; skip style nits. A "cannot fail" or "redundant" claim is demonstrated only by a surviving mutant or a replaced function body that stays green.
+- Look first for tests that assert current buggy behavior as intended, and for shared helpers, fakes or fixtures that ignore inputs (filters, sort, pagination, HTTP method, body) or swallow unexpected calls. One such helper hides defects in every consumer.
+- Group a repeated weakness once with all occurrences. Deduplicate production bugs by root cause and give each one owner location; cross-reference related causes.
+- Verify every production-bug claim with a bug probe before reporting it as fact; record status (confirmed, partial, latent, duplicate, refuted, unverified) and severity (critical, high, medium, low). Refute or downgrade claims the probe disproves; keep the correction visible.
+- Verify server-side consequences against a live service only on a development instance the user named, with scratch resources, sentinel data and a cleanup log; lockout and irreversible tests need explicit approval. See [references/live-verification.md](references/live-verification.md).
+
 ## Finish within scope
 
-For a write/fix request, review the final tests and remove duplicates, vacuous assertions, and implementation-only coupling. Reject tests that can pass without executing the claimed behavior, swallow unexpected failures, or accept both correct and faulty outcomes. Each added test must protect a useful contract or distinct fault case beyond existing coverage. When replacing or combining existing scenarios, first map each distinct original assertion to its retained check. Preserve public input shapes, sparse/partial service replies, omitted fields, failure cases, and completion states; similar names or outcomes do not establish duplicate coverage. Preserve meaningful combinations too: collection+nested coverage and singular+flat coverage do not establish singular+nested coverage. If a broader workflow hides an adapter contract because fallback has no visible effect, retain the focused real adapter assertion rather than replacing it with an indistinguishable outcome. Mark a retired assertion redundant only when another check detects the same plausible fault; do not assume fuller fixtures subsume sparse or partial replies. If a test fails, diagnose the contract and production path before changing expectations; never weaken assertions or bless current buggy output merely to make it pass. Run focused checks and applicable required gates. Broaden validation only when risk or observed failures justify it.
+For a write/fix request, review the final tests and remove duplicates, vacuous assertions, and implementation-only coupling. Reject tests that can pass without executing the claimed behavior, swallow unexpected failures, or accept both correct and faulty outcomes, and tests with no assertion, trivial getters or pass-throughs, or unrelated behaviors combined in one test. Each added test must protect a useful contract or distinct fault case beyond existing coverage. When replacing or combining existing scenarios, first map each distinct original assertion to its retained check. Preserve public input shapes, sparse/partial service replies, omitted fields, failure cases, and completion states; similar names or outcomes do not establish duplicate coverage. Preserve meaningful combinations too: collection+nested coverage and singular+flat coverage do not establish singular+nested coverage. If a broader workflow hides an adapter contract because fallback has no visible effect, retain the focused real adapter assertion rather than replacing it with an indistinguishable outcome. Mark a retired assertion redundant only when another check detects the same plausible fault; do not assume fuller fixtures subsume sparse or partial replies. If a test fails, diagnose the contract and production path before changing expectations; never weaken assertions or bless current buggy output merely to make it pass. Run focused checks and applicable required gates. Broaden validation only when risk or observed failures justify it.
 
-For an audit request, report concrete gaps with file/line, escaping defect, stronger user scenario, and whether the finding was demonstrated or inferred. Audit does not authorize rewriting tests. Delegate only when requested or otherwise authorized.
-
-Keep the final report compact: protected behavior, validation performed, DB/service or allowed algorithm mocks and their proof boundary, fault-probe result, and remaining infrastructure gaps. Distinguish algorithm/API/type proof from platform integration, actual persistence, external interoperability, or multiple-consumer proof. Do not stage, commit, or push without authorization.
+Keep the final report compact: protected behavior, each new test with the fault it catches, validation performed, DB/service or allowed algorithm mocks and their proof boundary, fault-probe result, and remaining infrastructure gaps. Distinguish algorithm/API/type proof from platform integration, actual persistence, external interoperability, or multiple-consumer proof. Do not stage, commit, or push without authorization.

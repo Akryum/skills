@@ -2,6 +2,14 @@
 
 Use patterns relevant to the current claim, language, and architecture. These illustrate stronger reasoning; they are not a mandatory test matrix. Reuse existing project infrastructure.
 
+## Component internals are not user behavior
+
+Weak: a component test reads instance state, calls an internal method, checks a stubbed child's props, or emits an event from a stubbed child by hand. A broken template binding, a missing event listener or a child that never renders still passes.
+
+Stronger: mount with real children and the real stores the feature uses; doubles stay at network or service boundaries. Act through user events (click, type, keyboard), find elements by role or accessible name, and assert the rendered result, the emitted events and the requests sent. A binding removed from the template must fail a relevant assertion.
+
+Applies to forms, dialogs, menus, pickers and any component whose contract is what a user sees and does.
+
 ## A caught failure can pass
 
 Weak: a forbidden operation throws, but the application catches it and the test checks only an empty result or settled loading. This can accept the forbidden operation happening.

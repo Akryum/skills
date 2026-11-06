@@ -24,4 +24,6 @@ When a realistic trial is warranted and authorized:
 4. Review the resulting tests, then run the correct implementation and independently selected, legitimate source faults against those exact final tests. Score meaningful assertion failures and useful scenarios; exclude equivalent changes, setup failures and unrelated timeouts. Check allowed mock boundaries and failure-safe cleanup too.
 5. Make only changes justified by observed behavior. Preserve failed attempts and outcome boundaries in temporary evidence; do not turn a small trial into a universal quality claim.
 
+For an audit run, score precision as well as recall: the share of reported claims that verification refuted, downgraded or merged as duplicates, plus a spot-check of sampled structural findings. Feed recurring false positives back into the skill or the project's skip rules.
+
 Evaluate a skill revision with application outcomes, not checks that its prose contains prescribed phrases. Use the project's existing runner and allowed external doubles; do not add live services or a new test stack solely for the trial.
