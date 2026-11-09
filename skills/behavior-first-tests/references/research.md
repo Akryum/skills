@@ -112,7 +112,7 @@ LLM test generation tends to write oracles that capture actual rather than expec
 
 In ImpossibleBench, where tests were altered to conflict with the spec, models deleted or edited tests or special-cased test inputs. A strict instruction to stop when tests look flawed cut one model's cheating from about 92% to about 1%; read-only tests also helped. [ImpossibleBench](https://openreview.net/pdf/f0edc0ee21784f063e1f7970ecbd360037762bb7.pdf). Anthropic's prompting guidance states that tests verify correctness rather than define the solution. [Claude docs](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-4-best-practices).
 
-**Recommendation:** write expected values from the issue, docs, spec or user scenario before running the code. While implementing, treat existing tests as read-only; report a test that looks wrong instead of editing, deleting or special-casing it. Imitate the project's existing harness rather than generating tests in a vacuum.
+**Recommendation:** write expected values from the issue, docs, spec or user scenario before running the code. While implementing, treat existing tests as read-only; report a test that looks wrong instead of editing, deleting or special-casing it. State the stop rule explicitly ("leave it red and report the conflict"): the measured drop in cheating came from that instruction, not from a general request to be careful. Gaming also happens outside test files (test-environment branches, swallowed errors, config and snapshot changes), so the rule covers production code and test setup too. Imitate the project's existing harness rather than generating tests in a vacuum.
 
 ## 15. LLM audits: structural smells are judgeable, semantic weakness needs execution
 
