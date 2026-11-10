@@ -120,7 +120,7 @@ Choose supporting detail as needed:
 - For browser/process harnesses or independent evaluation of this skill, read [references/execution-and-evaluation.md](references/execution-and-evaluation.md). Keep execution constraints portable and trials uncontaminated.
 - For any fault probe, read [references/fault-probes.md](references/fault-probes.md).
 - For audits of existing suites, read [references/auditing.md](references/auditing.md); for consequences inside a running service, [references/live-verification.md](references/live-verification.md).
-- For suite infrastructure (mutation testing in CI, arid skip lists, flaky quarantine, fake ownership, snapshot policy), read [references/suite-practices.md](references/suite-practices.md).
+- For suite infrastructure (mutation testing in CI, arid skip lists, coverage policy, test sizes, flaky quarantine, fake ownership, schema drift, snapshot policy), read [references/suite-practices.md](references/suite-practices.md).
 
 ## Prove failure sensitivity
 
@@ -128,7 +128,7 @@ For each important claim, identify a realistic defect that should fail the test.
 
 1. Run the focused baseline and confirm the intended source implementation is loaded. Rerun new tests several times; one that flips on unchanged source is not accepted until its waits or state are fixed. A test flaking near 1% of runs no longer works as a signal; investigate an existing flaky test before quarantining it, since a new flake can expose a production race.
 2. Probe a plausible production defect in isolated source/aliases with private writable caches, generated modules, temporary paths and reports. Dependency links alone do not isolate writes. Never inject defects into a shared checkout or dependency tree. Keep probes in a scratch folder run through the project's own runner configuration.
-3. Require an assertion failure tied to the claimed behavior. Syntax/import failures, unrelated timeouts, and setup failures are not proof.
+3. Require an assertion failure tied to the claimed behavior. Syntax/import failures, unrelated timeouts, and setup failures are not proof. For a new test claimed to add protection, also run the existing tests for that area against the same defect. If one already fails, the new test catches nothing unique: keep it only for a distinct contract or input class and say which, otherwise drop it or choose a defect the existing suite misses.
 4. For a survivor, verify reachability and demonstrate a promised observable defect with legitimate input; do not score equivalent changes. Strengthen genuinely weak scenarios, then confirm correct-source pass and defect failure. Never kill a survivor with a change-detector test (logging, timeouts/backoff, flags, capacity constants); record why it is not worth a test. Protective normalization and distinct adapter contracts are covered in [fault probes](references/fault-probes.md).
 5. Restore/remove only probe-owned artifacts; preserve concurrent work. Keep scored source/test snapshots current after meaningful changes.
 

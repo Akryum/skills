@@ -1,6 +1,6 @@
 # Suite-Level Practices
 
-Use when setting up or reviewing infrastructure that keeps a whole suite trustworthy: mutation testing in CI, flaky-test handling, fake ownership, snapshot policy and test selection. Routine test writing does not need it. Propose infrastructure changes; do not add tools, CI jobs or config without authorization. Evidence and limits are in [research](research.md) sections 11–18. Items marked *not verified* come from inference in the source research, not from fetched tool documentation; confirm them against the installed tool version.
+Use when setting up or reviewing infrastructure that keeps a whole suite trustworthy: mutation testing in CI, coverage policy, test sizes, flaky-test handling, test selection, fake ownership, schema drift and snapshot policy. Routine test writing does not need it. Propose infrastructure changes; do not add tools, CI jobs or config without authorization. Evidence and limits are in [research](research.md) sections 11–18. Items marked *not verified* come from inference in the source research, not from fetched tool documentation; confirm them against the installed tool version.
 
 ## Mutation testing in CI
 
@@ -13,6 +13,22 @@ Use when setting up or reviewing infrastructure that keeps a whole suite trustwo
 ## Arid skip list
 
 Keep one shared list of code not worth mutating, in the mutation tool configs (Stryker config, `.cargo/mutants.toml`), each entry with a one-line reason. Start from the categories that removed most noise at Google: logging and tracing macros, metrics and telemetry, timeouts/retry/backoff, feature-flag plumbing, collection capacities and debug/display formatting. cargo-mutants supports skipping by source attribute, path filter and function-name regex, and `--list` previews what will run; the exact attribute and config key names (`#[mutants::skip]`, `exclude_re`) are *not verified*. Grow the list from "not useful" review feedback and keep it in the repository, where false positives become the next rule. Do not skip code whose timing or flag behavior is itself a user contract.
+
+## Coverage
+
+- No coverage gate or target, global or per diff. A target becomes a ceiling and rewards tests that only execute lines; half of Meta's useful mutant-killing tests added no line coverage.
+- Use coverage while authoring and reviewing to find unexecuted branches, then ask which assertion would tell correct behavior from a plausible defect there.
+- Judge suite strength by surviving mutants on changed lines and pseudo-tested functions (a body replaced without any test failing), not by percentages.
+
+## Test sizes
+
+Define tiers by the resources a test may use, not by the label "unit" or "integration":
+
+- **Small:** one process, no network, no real disk or database, no sleeps. Runs on every change.
+- **Medium:** local services only (a database or service container on localhost), no external hosts. Runs on every change, in its own job.
+- **Large:** the deployed stack end to end. A thin smoke set of critical journeys; edge cases belong in smaller tiers.
+
+Flakiness rises with size, so track flaky rates and set the flake budget per tier, not for the whole suite, and run each tier as a separate CI job so a large-tier flake cannot block small-tier signal. Enforce the limits where the runner allows it (no network in the small tier) rather than by convention. Tier choice does not change the mock policy: DB and external-service doubles stay allowed in any tier.
 
 ## Flaky tests
 
@@ -32,6 +48,14 @@ Select tests from the dependency graph on PRs only with the full suite as a safe
 - Run one contract suite against both real and fake, for example `describe.each([real, fake])` in TypeScript or a generic `fn contract_suite<T: Trait>()` in Rust, so fake drift fails visibly. Fakes throw on unsupported options.
 - A lint rule flagging mocks of internal domain modules can enforce the skill's mock boundary; no existing rule was found, so this is a proposal.
 - This complements, and does not widen, the skill's mock policy: DB and external-service doubles stay allowed; replacing time or scheduling still needs the complex-algorithm exception.
+
+## Schema drift
+
+When a project generates types, clients or fixtures from an API schema, or keeps HTTP fakes of its own API:
+
+- Regenerate in CI and fail on any diff, so generated types cannot drift from the schema the server serves.
+- Validate fake responses and fixture payloads against the same schema, so a fake cannot return a shape the server never sends.
+- Add consumer-driven contract tools (Pact or similar) only once separately deployed consumers exist; a monorepo that builds both ends together gets the same signal from the two checks above.
 
 ## Snapshots
 
